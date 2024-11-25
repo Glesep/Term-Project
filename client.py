@@ -1,107 +1,242 @@
-import tkinter
+# client.py
+import tkinter as tk
+from tkinter import messagebox, simpledialog, ttk
 import threading
 import socket
 import sys
 
-# 사용자가 입력한 서버의 주소와 포트를 저장하는 변수들
-IP = ""
-PORT = 0
-
-# 접속 버튼을 눌렀을 때 실행되는 함수
-def connect(event=None):
-    global IP, PORT
-    input_string = input_addr_string.get()
-    addr = input_string.split(":")
-    IP = addr[0]
-    PORT = int(addr[1])
-    print(f"서버 접속 [{IP}:{PORT}]")
-    win_connect.destroy()
-
-def recv_message():
-    global sock
-    while True:
-        msg = sock.recv(1024)
-        chat_list.insert(tkinter.END, msg.decode("utf-8"))
-        chat_list.see(tkinter.END)
-
-def send_message(event=None):
-    global sock
-    message = input_msg.get()
-    sock.send(bytes(message, "utf-8"))
-    input_msg.set("")
-    if message == "/bye":
-        sock.close()
-        window.quit()
+class GameClient:
+    def __init__(self):
+        self.setup_connection_window()
+        self.current_turn = False
+        self.game_started = False
+        self.nickname = ""
         
-# 현재 팝업된 접속대상 윈도우 제거, 프로그램 종료
-def window_input_close(event=None):
-    print("윈도우 종료")
-    win_connect.destroy()
-    sys.exit(1)
+    def setup_connection_window(self):
+        self.win_connect = tk.Tk()
+        self.win_connect.protocol("WM_DELETE_WINDOW", self.window_input_close)
+        self.win_connect.title("게임 접속")
+        
+        tk.Label(self.win_connect, text="서버주소:").grid(row=0, column=0)
+        self.input_addr_string = tk.StringVar(value="127.0.0.1:8274")
+        self.input_addr = tk.Entry(self.win_connect, textvariable=self.input_addr_string, width=20)
+        self.input_addr.grid(row=0, column=1, padx=5, pady=5)
+        
+        connect_button = tk.Button(self.win_connect, text="접속", command=self.connect)
+        connect_button.grid(row=0, column=2, padx=5, pady=5)
+        
+        width = 280
+        height = 40
+        self.center_window(self.win_connect, width, height)
+        
+        self.input_addr.focus()
+        self.win_connect.mainloop()
+    
+    def setup_chat_window(self):
+        self.window = tk.Tk()
+        self.window.title("단어 맞추기 게임")
+        self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
+        
+        # 메인 프레임 (전체 창 확장을 위해)
+        main_frame = ttk.Frame(self.window)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        # 상단 정보 프레임
+        info_frame = ttk.Frame(main_frame)
+        info_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        # 닉네임 표시
+        self.nickname_label = tk.Label(info_frame, text=f"닉네임: {self.nickname}", 
+                                     font=("Arial", 10, "bold"), fg="darkblue")
+        self.nickname_label.pack(side=tk.LEFT)
+        
+        # 상태 표시 레이블
+        self.status_label = tk.Label(info_frame, text="대기중...", 
+                                   fg="blue", font=("Arial", 10, "bold"))
+        self.status_label.pack(side=tk.RIGHT)
+        
+        # 구분선
+        ttk.Separator(main_frame, orient='horizontal').pack(fill=tk.X, pady=5)
+        
+        # 채팅창 프레임
+        chat_frame = ttk.Frame(main_frame)
+        chat_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # 스크롤바와 채팅 리스트박스
+        self.chat_list = tk.Text(chat_frame, wrap=tk.WORD, height=15, font=("Arial", 10))
+        scrollbar = ttk.Scrollbar(chat_frame, orient="vertical", command=self.chat_list.yview)
+        self.chat_list.configure(yscrollcommand=scrollbar.set)
+        
+        # 채팅창과 스크롤바 배치
+        self.chat_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # 입력 프레임
+        input_frame = ttk.Frame(main_frame)
+        input_frame.pack(fill=tk.X, pady=5)
+        
+        # 메시지 입력창
+        self.input_msg = tk.StringVar()
+        self.inputbox = ttk.Entry(input_frame, textvariable=self.input_msg)
+        self.inputbox.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
+        self.inputbox.bind("<Return>", self.send_message)
+        
+        # 버튼 프레임
+        button_frame = ttk.Frame(input_frame)
+        button_frame.pack(side=tk.RIGHT)
+        
+        # 전송 버튼
+        self.send_button = ttk.Button(button_frame, text="전송", command=self.send_message)
+        self.send_button.pack(side=tk.LEFT, padx=2)
+        
+        # 정답 입력 버튼
+        self.answer_button = ttk.Button(button_frame, text="정답 입력", command=self.send_answer)
+        self.answer_button.pack(side=tk.LEFT, padx=2)
+        
+        # 초기 창 크기 설정
+        width = 400
+        height = 500
+        self.center_window(self.window, width, height)
+        
+        # 창 최소 크기 설정
+        self.window.minsize(400, 300)
+    
+    def center_window(self, window, width, height):
+        screen_width = window.winfo_screenwidth()
+        screen_height = window.winfo_screenheight()
+        x = int((screen_width / 2) - (width / 2))
+        y = int((screen_height / 2) - (height / 2))
+        window.geometry(f'{width}x{height}+{x}+{y}')
+    
+    def handle_nickname_setup(self):
+        """닉네임 설정 처리"""
+        while True:
+            msg = self.sock.recv(1024).decode()
+            
+            if msg == "FULL":
+                messagebox.showerror("오류", "게임방이 가득 찼습니다.")
+                return False
+                
+            if msg == "NICKNAME_REQ":
+                nickname = simpledialog.askstring("닉네임", "사용할 닉네임을 입력하세요:")
+                if not nickname:
+                    self.sock.close()
+                    return False
+                self.sock.send(nickname.encode())
+                continue
+                
+            if msg == "NICKNAME_DUP":
+                messagebox.showerror("오류", "이미 사용 중인 닉네임입니다.")
+                continue
+                
+            if msg.startswith("NICKNAME_ACK:"):
+                self.nickname = msg.split(":")[1]
+                return True
+                
+            break
+        return False
+    
+    def connect(self, event=None):
+        try:
+            addr = self.input_addr_string.get().split(":")
+            self.IP = addr[0]
+            self.PORT = int(addr[1])
+            
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.sock.connect((self.IP, self.PORT))
+            
+            self.win_connect.withdraw()  # 연결 창 숨기기
+            
+            if not self.handle_nickname_setup():
+                self.win_connect.destroy()
+                return
+            
+            self.win_connect.destroy()
+            self.setup_chat_window()
+            
+            # 메시지 수신 스레드 시작
+            receive_thread = threading.Thread(target=self.recv_message)
+            receive_thread.daemon = True
+            receive_thread.start()
+            
+            self.window.mainloop()
+                
+        except Exception as e:
+            messagebox.showerror("연결 오류", f"서버 연결 실패: {str(e)}")
+            self.win_connect.destroy()
+    
+    def update_status(self, message):
+        self.status_label.config(text=message)
+    
+    def append_message(self, message):
+        self.chat_list.insert(tk.END, message + '\n')
+        self.chat_list.see(tk.END)
+        self.chat_list.update()
+    
+    def toggle_input(self, state):
+        """입력 위젯들의 상태를 변경"""
+        state = 'normal' if state else 'disabled'
+        self.inputbox.config(state=state)
+        self.send_button.config(state=state)
+        self.answer_button.config(state=state)
+    
+    def send_message(self, event=None):
+        message = self.input_msg.get().strip()
+        if message:
+            try:
+                self.sock.send(message.encode())
+                self.input_msg.set("")
+            except:
+                messagebox.showerror("전송 오류", "메시지 전송에 실패했습니다.")
+    
+    def send_answer(self):
+        answer = simpledialog.askstring("정답 입력", "상대방의 단어를 맞춰보세요:")
+        if answer:
+            try:
+                self.sock.send(f"[정답] {answer}".encode())
+            except:
+                messagebox.showerror("전송 오류", "정답 전송에 실패했습니다.")
+    
+    def recv_message(self):
+        while True:
+            try:
+                msg = self.sock.recv(1024).decode()
+                if not msg:
+                    continue
+                
+                # 게임 상태 메시지 처리
+                if "게임 재시작을 원하시면" in msg:
+                    self.game_started = False
+                    self.update_status("재시작 대기중...")
+                elif "=== 게임 시작 ===" in msg:
+                    self.game_started = True
+                    self.toggle_input(True)
+                
+                # 게임 정보 표시
+                if "당신의 단어:" in msg:
+                    word_info = msg.split("\n")[1]
+                    self.update_status(word_info)
+                
+                self.append_message(msg)
+                
+            except Exception as e:
+                messagebox.showerror("연결 오류", "서버와의 연결이 끊어졌습니다.")
+                self.window.destroy()
+                break
+    
+    def on_closing(self):
+        if messagebox.askokcancel("종료", "게임을 종료하시겠습니까?"):
+            try:
+                self.sock.send("/bye".encode())
+                self.sock.close()
+            except:
+                pass
+            self.window.destroy()
+            sys.exit()
+    
+    def window_input_close(self, event=None):
+        self.win_connect.destroy()
+        sys.exit()
 
-win_connect = tkinter.Tk()  # 메인 윈도우 역할을 할 위젯 생성
-win_connect.protocol("WM_DELETE_WINDOW", window_input_close)    # "WM_DELETE_WINDOW": x버튼을 누를 시 -> window_input_close 실행
-win_connect.title("접속대상")   # 위젯의 제목
-
-tkinter.Label(win_connect, text="접속대상").grid(row=0, column=0)
-input_addr_string = tkinter.StringVar(value="127.0.0.1:8274")   # tkinter.StringVar(value="127.0.0.1:8274"): 문자열 변수와 연결, 기본 값 = 127.0.0.1:8274
-input_addr = tkinter.Entry(win_connect, textvariable=input_addr_string, width=20)
-input_addr.grid(row=0, column=1, padx=5, pady=5)
-
-connect_button = tkinter.Button(win_connect, text="접속", command=connect)  # win_connect 객체 안에 "접속"이라는 버튼을 만들고 버튼을 누를 시 connect 함수 실행
-connect_button.grid(row=0, column=2, padx=5, pady=5)
-
-width = 280
-height = 40
-
-# 현재 모니터의 해상도를 구함
-screen_width = win_connect.winfo_screenwidth()
-screen_height = win_connect.winfo_screenheight()
-
-x = int((screen_width / 2) - (width / 2))
-y = int((screen_height / 2) - (height / 2))
-
-win_connect.geometry(f'{width}x{height}+{x}+{y}')
-input_addr.focus()
-win_connect.mainloop()
-
-window = tkinter.Tk()
-window.title("채팅 클라이언트")
-
-# listbox와 scrollbar를 하나의 그룹으로 묶기 위해 Frame 위젯 사용
-frame = tkinter.Frame(window)
-
-# Scrollbar 객체 정의
-scroll = tkinter.Scrollbar(frame)
-scroll.pack(side = tkinter.RIGHT, fill=tkinter.Y)
-# Listbox 객체 정의
-chat_list = tkinter.Listbox(frame, height=15, width=50, yscrollcommand=scroll.set)
-chat_list.pack(side=tkinter.LEFT, fill=tkinter.BOTH, padx=5, pady=5)
-
-frame.pack()
-
-input_msg = tkinter.StringVar()
-inputbox = tkinter.Entry(window, textvariable=input_msg)
-# Entry 객체에 입력하는 문자열들은 input_msg에 저장되고, send_message() 내에서 input_msg의 내용을 가져옴
-inputbox.bind("<Return>", send_message)
-inputbox.pack(side=tkinter.LEFT, fill=tkinter.BOTH, expand=tkinter.YES, padx=5, pady=5)
-# 전송 버튼 클릭 시, send_message 실행
-send_button = tkinter.Button(window, text="전송", command=send_message)
-send_button.pack(side=tkinter.RIGHT, fill=tkinter.X, padx=5, pady=5)
-
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-print(f"서버 접속시도 [{IP}:{PORT}]")
-r = sock.connect_ex((IP, PORT))
-if r == 0:
-    receive_thread = threading.Thread(target=recv_message)
-    receive_thread.daemon=True
-    receive_thread.start()
-
-    width = 383
-    height = 292
-
-    x = int((screen_width / 2) - (width / 2))
-    y = int((screen_height / 2) - (height / 2))
-
-    window.geometry(f'{width}x{height}+{x}+{y}')
-    window.mainloop()
+if __name__ == "__main__":
+    client = GameClient()
