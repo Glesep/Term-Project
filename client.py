@@ -6,13 +6,28 @@ import socket
 import sys
 
 class GameClient:
+    """게임 클라이언트 클래스
+    
+    서버와의 연결, UI 구성, 게임 진행을 관리하는 메인 클래스
+    서버의 GameHandler 클래스와 상호작용하여 게임을 진행
+    """
+    
     def __init__(self):
+        """클라이언트 초기화
+        
+        게임 상태 변수들을 초기화하고 연결 설정 창을 생성
+        """
         self.setup_connection_window()
-        self.current_turn = False
-        self.game_started = False
-        self.nickname = ""
+        self.current_turn = False  # 현재 턴 여부
+        self.game_started = False  # 게임 시작 여부
+        self.nickname = ""  # 사용자 닉네임
         
     def setup_connection_window(self):
+        """서버 연결 설정 창 생성
+        
+        서버 주소를 입력받는 초기 창을 생성
+        connect 메소드와 연결되어 서버 연결을 처리
+        """
         self.win_connect = tk.Tk()
         self.win_connect.protocol("WM_DELETE_WINDOW", self.window_input_close)
         self.win_connect.title("게임 접속")
@@ -33,11 +48,16 @@ class GameClient:
         self.win_connect.mainloop()
     
     def setup_chat_window(self):
+        """게임 메인 창 설정
+        
+        채팅창, 입력창, 버튼 등 게임에 필요한 UI 구성요소 생성
+        서버로부터 받은 메시지를 표시하고 사용자 입력을 처리
+        """
         self.window = tk.Tk()
         self.window.title("단어 맞추기 게임")
         self.window.protocol("WM_DELETE_WINDOW", self.on_closing)
         
-        # 메인 프레임 (전체 창 확장을 위해)
+        # 메인 프레임 구성
         main_frame = ttk.Frame(self.window)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
@@ -62,12 +82,11 @@ class GameClient:
         chat_frame = ttk.Frame(main_frame)
         chat_frame.pack(fill=tk.BOTH, expand=True)
         
-        # 스크롤바와 채팅 리스트박스
+        # 채팅창과 스크롤바
         self.chat_list = tk.Text(chat_frame, wrap=tk.WORD, height=15, font=("Arial", 10))
         scrollbar = ttk.Scrollbar(chat_frame, orient="vertical", command=self.chat_list.yview)
         self.chat_list.configure(yscrollcommand=scrollbar.set)
         
-        # 채팅창과 스크롤바 배치
         self.chat_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
@@ -93,15 +112,20 @@ class GameClient:
         self.answer_button = ttk.Button(button_frame, text="정답 입력", command=self.send_answer)
         self.answer_button.pack(side=tk.LEFT, padx=2)
         
-        # 초기 창 크기 설정
+        # 창 크기 설정
         width = 400
         height = 500
         self.center_window(self.window, width, height)
-        
-        # 창 최소 크기 설정
         self.window.minsize(400, 300)
     
     def center_window(self, window, width, height):
+        """창을 화면 중앙에 위치시키는 함수
+        
+        Args:
+            window: 중앙에 위치시킬 창
+            width: 창의 너비
+            height: 창의 높이
+        """
         screen_width = window.winfo_screenwidth()
         screen_height = window.winfo_screenheight()
         x = int((screen_width / 2) - (width / 2))
@@ -109,7 +133,14 @@ class GameClient:
         window.geometry(f'{width}x{height}+{x}+{y}')
     
     def handle_nickname_setup(self):
-        """닉네임 설정 처리"""
+        """닉네임 설정 처리
+        
+        서버의 handle_nickname_setup 메소드와 통신하여
+        닉네임 설정 및 중복 체크를 수행
+        
+        Returns:
+            bool: 닉네임 설정 성공 여부
+        """
         while True:
             msg = self.sock.recv(1024).decode()
             
@@ -137,6 +168,11 @@ class GameClient:
         return False
     
     def connect(self, event=None):
+        """서버 연결 처리
+        
+        서버에 연결하고 닉네임 설정 후 게임 창을 생성
+        메시지 수신 스레드를 시작
+        """
         try:
             addr = self.input_addr_string.get().split(":")
             self.IP = addr[0]
@@ -145,7 +181,7 @@ class GameClient:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.connect((self.IP, self.PORT))
             
-            self.win_connect.withdraw()  # 연결 창 숨기기
+            self.win_connect.withdraw()
             
             if not self.handle_nickname_setup():
                 self.win_connect.destroy()
@@ -154,7 +190,6 @@ class GameClient:
             self.win_connect.destroy()
             self.setup_chat_window()
             
-            # 메시지 수신 스레드 시작
             receive_thread = threading.Thread(target=self.recv_message)
             receive_thread.daemon = True
             receive_thread.start()
@@ -166,21 +201,39 @@ class GameClient:
             self.win_connect.destroy()
     
     def update_status(self, message):
+        """상태 메시지 업데이트
+        
+        Args:
+            message: 표시할 상태 메시지
+        """
         self.status_label.config(text=message)
     
     def append_message(self, message):
+        """채팅창에 메시지 추가
+        
+        Args:
+            message: 추가할 메시지
+        """
         self.chat_list.insert(tk.END, message + '\n')
         self.chat_list.see(tk.END)
         self.chat_list.update()
     
     def toggle_input(self, state):
-        """입력 위젯들의 상태를 변경"""
+        """입력 위젯들의 활성화/비활성화
+        
+        Args:
+            state: True면 활성화, False면 비활성화
+        """
         state = 'normal' if state else 'disabled'
         self.inputbox.config(state=state)
         self.send_button.config(state=state)
         self.answer_button.config(state=state)
     
     def send_message(self, event=None):
+        """메시지 전송
+        
+        입력된 메시지를 서버로 전송
+        """
         message = self.input_msg.get().strip()
         if message:
             try:
@@ -190,6 +243,10 @@ class GameClient:
                 messagebox.showerror("전송 오류", "메시지 전송에 실패했습니다.")
     
     def send_answer(self):
+        """정답 전송
+        
+        정답을 입력받아 서버로 전송
+        """
         answer = simpledialog.askstring("정답 입력", "상대방의 단어를 맞춰보세요:")
         if answer:
             try:
@@ -198,6 +255,11 @@ class GameClient:
                 messagebox.showerror("전송 오류", "정답 전송에 실패했습니다.")
     
     def recv_message(self):
+        """메시지 수신 처리
+        
+        서버로부터 메시지를 받아 처리하는 스레드 함수
+        게임 상태, 턴, 채팅 메시지 등을 처리
+        """
         while True:
             try:
                 msg = self.sock.recv(1024).decode()
@@ -208,6 +270,7 @@ class GameClient:
                 if "게임 재시작을 원하시면" in msg:
                     self.game_started = False
                     self.update_status("재시작 대기중...")
+                    self.toggle_input(True)
                 elif "=== 게임 시작 ===" in msg:
                     self.game_started = True
                     self.toggle_input(True)
@@ -225,6 +288,10 @@ class GameClient:
                 break
     
     def on_closing(self):
+        """창 종료 처리
+        
+        게임 종료 시 서버와의 연결을 종료하고 프로그램 종료
+        """
         if messagebox.askokcancel("종료", "게임을 종료하시겠습니까?"):
             try:
                 self.sock.send("/bye".encode())
@@ -235,6 +302,7 @@ class GameClient:
             sys.exit()
     
     def window_input_close(self, event=None):
+        """연결 창 종료 처리"""
         self.win_connect.destroy()
         sys.exit()
 
