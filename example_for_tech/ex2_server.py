@@ -45,10 +45,20 @@ class ChatServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 
 def sendMessage():
     while True:
+        # 서버 귓속말 형식: /w nickname chat
         server_message = input()
-        
-        for sock, _ in users.values():
-            sock.send(f"{server_message}".encode())
+        # 귓속말일 경우
+        if server_message.startswith("/w "):
+            message_split = server_message.split()
+            nickname_toWhisper = message_split[1]
+            chat_slice = message_split[2:]
+            chat = " ".join(chat_slice)
+            
+            users[nickname_toWhisper][0].send(f"{chat}".encode())
+        # 전체 보내기일 경우
+        else:  
+            for sock, _ in users.values():
+                sock.send(f"{server_message}".encode())
     
 
 
