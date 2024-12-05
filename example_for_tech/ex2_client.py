@@ -27,9 +27,17 @@ def connect(event=None):
     IP = addr[0]
     PORT = int(addr[1])
     print("서버 접속 [{}:{}]".format(IP, PORT))
+    # 소캣 제작
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    print(f"서버 접속시도 [{IP}:{PORT}]")
+    # 소켓 연결 시도 후 코드 반환(0: 연결 성공, 0 이외의 값: 연결 실패)
+    connectionResult = sock.connect_ex((IP, PORT))
+    print(connectionResult)
     
-    # 작업이 끝난 후 창을 닫음
-    win_connect.destroy()
+    if connectionResult == 0:
+        # 작업이 끝난 후 창을 닫음
+        win_connect.destroy()
     
 def set_nickname(msg):
     global MyNickname, sock
@@ -114,13 +122,7 @@ input_addr.focus()
 win_connect.mainloop()
 
 
-# 소캣 제작
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-print(f"서버 접속시도 [{IP}:{PORT}]")
-# 소켓 연결 시도 후 코드 반환(0: 연결 성공, 0 이외의 값: 연결 실패)
-connectionResult = sock.connect_ex((IP, PORT))
-print(connectionResult)
 
 # ===================================================
 # 닉네임 입력 창 제작
