@@ -10,9 +10,9 @@ PORT = 0
 MyNickname = ""
 
 # X 버튼을 눌러 종료를 하였을 떄
-def window_input_close(event=None):
+def window_input_close(win_object):
     print("윈도우 종료")
-    win_connect.destroy()
+    win_object.destroy()
     # 프로그램 종료
     sys.exit(1)
 
@@ -33,10 +33,12 @@ def connect(event=None):
 def set_nickname(msg):
     global MyNickname, sock
     
-    send_message(msg)
-    MyNickname = sock.recv(1024)
+    msg_str = msg.get()
     
-    if MyNickname == msg.decode():
+    send_message(msg)
+    MyNickname = sock.recv(1024).decode()
+    
+    if MyNickname == msg_str:
         print(f"나의 닉네임: {MyNickname}")
         win_nickname.destroy()
     else:
@@ -70,7 +72,7 @@ def send_message(msg):
     
 win_connect = tkinter.Tk()
 # X 버튼을 누를 때 실행되는 함수 연결
-win_connect.protocol("WM_DELETE_WINDOW", window_input_close)
+win_connect.protocol("WM_DELETE_WINDOW", lambda: window_input_close(win_connect))
 win_connect.title("접속대상")
 
 # 라벨 추가, 그리드를 설정해야 배치됨
@@ -112,6 +114,7 @@ input_addr.focus()
 # Tkinter GUI 프로그램 실행
 win_connect.mainloop()
 
+# ** 소켓 연결 에러가 뜰 시 예외처리 해주기 **
 # 소캣 제작
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -124,7 +127,7 @@ print(connectionResult)
 # 닉네임 입력 창 제작
 
 win_nickname = tkinter.Tk()
-win_nickname.protocol("WM_DELETE_WINDOW", window_input_close)
+win_nickname.protocol("WM_DELETE_WINDOW", lambda: window_input_close(win_nickname))
 win_nickname.title("닉네임 입력")
 
 tkinter.Label(win_nickname, text="닉네임 입력").grid(row=0, column=0)
@@ -136,7 +139,8 @@ input_nickname = tkinter.Entry(win_nickname, textvariable=input_nickname_str, wi
 # 그리드 설정, 여백 추가
 input_nickname.grid(row=0, column=1, padx=5, pady=5)
 
-input_nickname_button = tkinter.Button(win_nickname, text="확인", command=set_nickname(input_nickname_str))
+# 람다 사용함으로써 매개변수를 전달하면서 함수 참조
+input_nickname_button = tkinter.Button(win_nickname, text="확인", command=lambda:set_nickname(input_nickname_str))
 
 input_nickname_button.grid(row=0, column=2, padx=5, pady=5)
 
@@ -154,7 +158,7 @@ win_nickname.mainloop()
 # ===============================================================================
 
 window = tkinter.Tk()
-window.protocol("WM_DELETE_WINDOW", window_input_close)
+window.protocol("WM_DELETE_WINDOW", lambda: window_input_close(window))
 window.title("채팅 클라이언트")
 # 프레임을 사용하여 다른 위젯들을 담는 컨테이너 역할으로 사용
 frame = tkinter.Frame(window)
@@ -174,35 +178,25 @@ input_msg = tkinter.StringVar()
 # 입력 창 설정
 inputbox = tkinter.Entry(window, textvariable=input_msg)
 # 입력 창에 enter 키 이벤트가 일어났을 때 send_message 함수를 실행
-inputbox.bind("<Return>", send_message(input_msg))
+
+inputbox.bind("<Return>", lambda event: send_message(input_msg))
 
 # 왼쪽에, 상하좌우 확장하며, 사용 공간을 확장하며 배치
 inputbox.pack(side=tkinter.LEFT, fill=tkinter.BOTH, expand=tkinter.YES, padx=5, pady=5)
 # 전송 버튼 생성, 누를 시 send_message 함수 실행
-send_button = tkinter.Button(window, text="전송", command=send_message(input_msg))
+send_button = tkinter.Button(window, text="전송", command=lambda:send_message(input_msg))
 # 오른쪽에, 좌우 확장하며 배치
 send_button.pack(side=tkinter.RIGHT, fill=tkinter.X, padx=5, pady=5)
 
 
-# # 소캣 제작
-# sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-# print(f"서버 접속시도 [{IP}:{PORT}]")
-# # 소켓 연결 시도 후 코드 반환(0: 연결 성공, 0 이외의 값: 연결 실패)
-# connectionResult = sock.connect_ex((IP, PORT))
-# 연결 성공 시
-if connectionResult == 0:
-    # recv_message 함수에 대한 데몬 쓰레드 실행
-    receive_thread = threading.Thread(target=recv_message)
-    receive_thread.daemon=True
-    receive_thread.start()
-
-    # 채팅창 크기 설정 이후 창 실행
-    width = 383
-    height = 292
-
-    x = int((screen_width / 2) - (width / 2))
-    y = int((screen_height / 2) - (height / 2))
-
-    window.geometry('%dx%d+%d+%d' % (width, height, x, y))
-    window.mainloop()
+# recv_message 함수에 대한 데몬 쓰레드 실행
+receive_thread = threading.Thread(target=recv_message)
+receive_thread.daemon=True
+receive_thread.start()
+# 채팅창 크기 설정 이후 창 실행
+width = 383
+height = 292
+x = int((screen_width / 2) - (width / 2))
+y = int((screen_height / 2) - (height / 2))
+window.geometry('%dx%d+%d+%d' % (width, height, x, y))
+window.mainloop()

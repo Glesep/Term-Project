@@ -10,7 +10,6 @@ class MyHander(socketserver.BaseRequestHandler):
         print(self.client_address)
 
         while True:
-            # self.request.send("채팅 닉네임을 입력하세요 ".encode())
             nickname = self.request.recv(1024).decode()
             
             if nickname in users:
