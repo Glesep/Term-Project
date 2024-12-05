@@ -98,6 +98,29 @@ input_addr.focus()
 # Tkinter GUI 프로그램 실행
 win_connect.mainloop()
 
+# ===================================================
+# 닉네임 입력 창 제작
+
+win_nickname = tkinter.Tk()
+win_nickname.title("닉네임 입력")
+
+tkinter.Label(win_nickname, text="닉네임 입력").grid(row=0, column=0)
+
+# tkinter의 문자열 데이터 전용 변수
+input_nickname_str = tkinter.StringVar()
+
+input_nickname = tkinter.Entry(win_nickname, textvariable=input_addr_string, width=20)
+# 그리드 설정, 여백 추가
+input_nickname.grid(row=0, column=1, padx=5, pady=5)
+
+input_nickname_button = tkinter.Button(win_nickname, text="확인", command=connect)
+
+
+
+
+
+
+
 window = tkinter.Tk()
 window.title("채팅 클라이언트")
 # 프레임을 사용하여 다른 위젯들을 담는 컨테이너 역할으로 사용
