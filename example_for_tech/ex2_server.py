@@ -10,7 +10,7 @@ class MyHander(socketserver.BaseRequestHandler):
         print(self.client_address)
 
         while True:
-            self.request.send("채팅 닉네임을 입력하세요 ".encode())
+            # self.request.send("채팅 닉네임을 입력하세요 ".encode())
             nickname = self.request.recv(1024).decode()
             
             if nickname in users:
@@ -19,6 +19,8 @@ class MyHander(socketserver.BaseRequestHandler):
                 # 서버에 접속하는 모든 클라이언트에 대한 정보 저장
                 users[nickname] = (self.request, self.client_address)
                 print(f"현재 {len(users)} 명 참여중..")
+                # 클라이언트에게 정해진 닉네임 알려줌
+                self.request.send(f"{nickname}".encode())
                 
                 for sock, _ in users.values():
                     sock.send(f"{nickname} 님이 입장 했습니다.".encode())
