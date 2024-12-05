@@ -3,7 +3,6 @@ import threading
 import socket
 import sys
 
-
 IP = ""
 PORT = 0
 
@@ -156,10 +155,15 @@ input_nickname.focus()
 win_nickname.mainloop()
 
 # ===============================================================================
+# 채팅창 제작
 
 window = tkinter.Tk()
 window.protocol("WM_DELETE_WINDOW", lambda: window_input_close(window))
 window.title("채팅 클라이언트")
+
+nickname_label = tkinter.Label(window, text=f"내 닉네임: {MyNickname}", anchor="w")
+nickname_label.pack(side=tkinter.TOP, fill=tkinter.X, padx=5, pady=5)
+
 # 프레임을 사용하여 다른 위젯들을 담는 컨테이너 역할으로 사용
 frame = tkinter.Frame(window)
 # 스크롤바 생성
@@ -195,7 +199,7 @@ receive_thread.daemon=True
 receive_thread.start()
 # 채팅창 크기 설정 이후 창 실행
 width = 383
-height = 292
+height = 400
 x = int((screen_width / 2) - (width / 2))
 y = int((screen_height / 2) - (height / 2))
 window.geometry('%dx%d+%d+%d' % (width, height, x, y))
