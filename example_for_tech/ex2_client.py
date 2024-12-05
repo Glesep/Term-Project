@@ -120,6 +120,7 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 print(f"서버 접속시도 [{IP}:{PORT}]")
 # 소켓 연결 시도 후 코드 반환(0: 연결 성공, 0 이외의 값: 연결 실패)
 connectionResult = sock.connect_ex((IP, PORT))
+print(connectionResult)
 
 # ===================================================
 # 닉네임 입력 창 제작
@@ -149,7 +150,6 @@ y = int((screen_height / 2) - (height / 2))
 win_nickname.geometry('%dx%d+%d+%d' % (width, height, x, y))
 
 input_nickname.focus()
-
 
 # 이 분기점에서 접근하지 못하고 있음
 if connectionResult == 0:
