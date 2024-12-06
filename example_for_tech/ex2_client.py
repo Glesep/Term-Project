@@ -7,6 +7,7 @@ IP = ""
 PORT = 0
 
 MyNickname = ""
+MyWord = ""
 
 # X 버튼을 눌러 종료를 하였을 떄
 def window_input_close(win_object):
@@ -48,11 +49,20 @@ def recv_message():
     global sock
     while True:
         msg = sock.recv(1024)
-        # tkinter.END : 현재 내용의 가장 끝 위치 참조
-        # 가장 끝 위치에 msg 내용을 기록하겠다
-        chat_list.insert(tkinter.END, msg.decode("utf-8"))
-        # 가장 끝 위치로 자동 스크롤을 내리겠다
-        chat_list.see(tkinter.END)
+        msg_decode = msg.decode()
+        msg_tokens = msg_decode.split(" ")
+        
+        # 서버에서 교체 명령이 왔을 때
+        if msg_tokens[0] == "/t":
+            word_label.config(text=f"나의 단어: {msg_tokens[1]}")
+            
+            
+        else:
+            # tkinter.END : 현재 내용의 가장 끝 위치 참조
+            # 가장 끝 위치에 msg 내용을 기록하겠다
+            chat_list.insert(tkinter.END, msg.decode("utf-8"))
+            # 가장 끝 위치로 자동 스크롤을 내리겠다
+            chat_list.see(tkinter.END)
 
 def send_message(msg):
     global sock
@@ -161,8 +171,12 @@ window = tkinter.Tk()
 window.protocol("WM_DELETE_WINDOW", lambda: window_input_close(window))
 window.title("채팅 클라이언트")
 
-nickname_label = tkinter.Label(window, text=f"내 닉네임: {MyNickname}", anchor="w")
+nickname_label = tkinter.Label(window, text=f"나의 닉네임: {MyNickname}", anchor="w")
 nickname_label.pack(side=tkinter.TOP, fill=tkinter.X, padx=5, pady=5)
+
+# 자신의 단어 표현
+word_label = tkinter.Label(window, text=f"나의 단어: {MyWord}")
+word_label.place(relx=1.0, rely=0.0, anchor='ne')
 
 # 프레임을 사용하여 다른 위젯들을 담는 컨테이너 역할으로 사용
 frame = tkinter.Frame(window)
