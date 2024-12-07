@@ -26,7 +26,6 @@ def connect(event=None):
 
     IP = addr[0]
     PORT = int(addr[1])
-    # print("서버 접속 [{}:{}]".format(IP, PORT))
     
     win_connect.destroy()
     
@@ -97,6 +96,9 @@ input_addr = tkinter.Entry(win_connect, textvariable=input_addr_string, width=20
 # 그리드 설정, 여백 추가
 input_addr.grid(row=0, column=1, padx=5, pady=5)
 
+# enter키로도 입력 가능하게 구현
+input_addr.bind("<Return>", lambda event: connect())
+
 # 접속하기 버튼 추가, 접속하기 버튼을 눌렀을 때 connect 함수 실행
 connect_button = tkinter.Button(win_connect, text="접속하기", command=connect)
 
@@ -147,6 +149,9 @@ input_nickname_str = tkinter.StringVar()
 input_nickname = tkinter.Entry(win_nickname, textvariable=input_nickname_str, width=20)
 # 그리드 설정, 여백 추가
 input_nickname.grid(row=0, column=1, padx=5, pady=5)
+
+# enter키로도 입력 가능하게 구현
+input_nickname.bind("<Return>", lambda event: set_nickname(input_nickname_str))
 
 # 람다 사용함으로써 매개변수를 전달하면서 함수 참조
 input_nickname_button = tkinter.Button(win_nickname, text="확인", command=lambda:set_nickname(input_nickname_str))

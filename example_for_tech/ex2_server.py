@@ -3,7 +3,7 @@ from threading import Thread
 import random
 import time
 
-users = {}  # value는 튜플
+users = {}  # key: nickname / value: 해당 닉네임에 대한 정보 (튜플)
 
 topic = {"동물": ["사자", "호랑이", "팽귄", "하마", "얼룩말", "개", "고양이", "기린", "참치", "개구리", "앵무새", "독수리"],
        "과일": ["사과", "배", "수박", "토마토", "딸기", "포도", "오랜지", "복숭아", "참외", "멜론", "키위"],
@@ -14,10 +14,13 @@ topic = {"동물": ["사자", "호랑이", "팽귄", "하마", "얼룩말", "개
 start_game = "상대방의 직업을 찾아라!\n 주어진 주제 내에서 상대방의 단어를 맞춰 보세요.\n 이하 게임 설명"
 
 isStarted = False
+current_turn = ""
 # HandlerClass 제작
 class MyHander(socketserver.BaseRequestHandler):
     
     def handle(self):
+        global isStarted, current_turn
+        
         print(self.client_address)
 
         while True:
@@ -52,29 +55,67 @@ class MyHander(socketserver.BaseRequestHandler):
                     random_topic = random.choice(list(topic.keys()))
                     random_words = random.sample(topic[random_topic], 2)
                     
+                    # 게임 시작을 알리는 flag
+                    isStarted = True
+                    current_turn = list(users.keys())[0]
+                    
                     # 단어 분배
-                    for (sock, _), word in zip(users.values(), random_words):
-                        sock.send(f"/t {word}".encode())
+                    for i, ((sock, _), word) in enumerate(zip(users.values(), random_words)):
+                        sock.send(f"/t {word}".encode()) 
+                        time.sleep(0.5)
                         
+                        if i == 0:
+                            sock.send("당신의 차례입니다! 자신의 단어를 표현해주세요!".encode())
+                        else:
+                            sock.send("상대방의 차례입니다.".encode())
+                    
+                    
                 break
             
             
         while True:
+            
             msg = self.request.recv(1024)
             if msg.decode() == "/bye":
                 print("exit client")
                 self.request.close()
-                break          
-            # 전체 유저에게 채팅 보내주기
-            for sock, _ in users.values():
-                sock.send(f"[{nickname}] {msg.decode()}".encode())
+                break  
+            
+            if isStarted:
+                # 게임 중일 때는 턴 체크
+                if nickname == current_turn:
+                    # 메시지 전송 후 턴 변경
+                    for sock, _ in users.values():
+                        sock.send(f"[{nickname}] {msg.decode()}".encode())
+                    
+                    # 다음 턴으로 변경
+                    players = list(users.keys())
+                    current_turn = players[1] if current_turn == players[0] else players[0]
+                    
+                    # 턴 변경 알림
+                    for nick, (sock, _) in users.items():
+                        if nick == current_turn:
+                            sock.send("당신의 차례입니다! 자신의 단어를 표현해주세요!".encode())
+                        else:
+                            sock.send("상대방의 차례입니다.".encode())
+                else:
+                    # 자신의 턴이 아닐 때는 메시지를 보낸 클라이언트에게만 알림
+                    self.request.send("지금은 당신의 차례가 아닙니다.".encode())
+                 
+            else:        
+                # 게임 시작 전에는 자유롭게 채팅 가능
+                for sock, _ in users.values():
+                    sock.send(f"[{nickname}] {msg.decode()}".encode())
+       
+                
                 
         if nickname in users:
             del users[nickname]
             for sock, _ in users.values():
                 sock.send(f"{nickname}님이 퇴장 했습니다.".encode())
             print(f"현재 {len(users)}명 참여중")
-            
+
+# chatServer를 멀티 쓰레드 환경으로 구성            
 class ChatServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
 
@@ -98,7 +139,6 @@ def sendMessage():
 
 
 # TCPServer클래스는 server_address와 HandlerClass를 매개변수로 필요로 함
-
 server = ChatServer(("", 8274), MyHander)
 
 # 서버가 메세지를 보내기 위한 쓰레드 설정
