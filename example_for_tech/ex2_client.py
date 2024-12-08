@@ -49,11 +49,12 @@ def recv_message():
     while True:
         msg = sock.recv(1024)
         msg_decode = msg.decode()
-        msg_tokens = msg_decode.split(" ")
         
         # 서버에서 교체 명령이 왔을 때
-        if msg_tokens[0] == "/t":
-            word_label.config(text=f"나의 단어: {msg_tokens[1]}")
+        if msg_decode.startswith("/t"):
+            # 단어 추출
+            word = msg_decode[len("/t"):].strip()
+            word_label.config(text=f"나의 단어: {word}")
             
             
         else:
