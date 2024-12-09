@@ -13,17 +13,41 @@ timer_running = False
 
 def window_input_close(win_object):
     print("윈도우 종료")
-    win_object.destroy()
+    
+    # 채팅창에서 나갈 때
+    if 'window' in globals() and win_object == window:
+        bye = tkinter.StringVar(value="/bye")
+        send_message(bye)
+
+    # 닉네임 설정 창에서 나갈 때
+    elif 'win_nickname' in globals() and win_object == win_nickname:
+        sock.shutdown(socket.SHUT_RDWR)
+        sock.close()
+        win_object.destroy()
+    
+    # 연결 창에서 나갈 때
+    else:
+        win_object.destroy()
+        
     sys.exit(1)
 
 
 def connect(event=None):
-    global IP, PORT
+    global IP, PORT, sock
     input_string = input_addr_string.get()
     addr = input_string.split(":")
     IP = addr[0]
     PORT = int(addr[1])
-    win_connect.destroy()
+    
+    
+    print(f"서버 접속시도 [{IP}:{PORT}]")
+    connectionResult = sock.connect_ex((IP, PORT))
+    if connectionResult == 0:
+        print ("접속 성공")
+        win_connect.destroy()
+    else:
+        print("접속 실패")
+    
 
 
 def set_nickname(msg):
@@ -62,39 +86,53 @@ def reset_timer():
 def recv_message():
     global sock, timer_thread
     while True:
-        msg = sock.recv(1024)
-        msg_decode = msg.decode()
+        try:
+            if not sock:
+                break
         
-        if "승리하셨습니다!!" in msg_decode:
-            reset_timer()
-            timer_label.config(text="남은 시간: ")
-        
-        if "당신의 차례입니다" in msg_decode:
-            if timer_thread:
-                reset_timer()
-            timer_thread = threading.Thread(target=start_timer)
-            timer_thread.daemon = True
-            timer_thread.start()
-        
-        elif "상대방의" in msg_decode:
-            reset_timer()
-            
-        if msg_decode.startswith("/t"):
-            word = msg_decode[len("/t"):].strip()
-            word_label.config(text=f"나의 단어: {word}")
-            
-        else:
-            chat_list.insert(tkinter.END, msg_decode)
-            chat_list.see(tkinter.END)
+            msg = sock.recv(1024)
+            msg_decode = msg.decode()
 
+            if "승리하셨습니다!!" in msg_decode or "퇴장" in msg_decode:
+                reset_timer()
+                timer_label.config(text="남은 시간: ")
+                nickname_label.config(fg="black")
+                word_label.config(text=f"나의 단어: ")
+
+            if "당신의 차례입니다" in msg_decode:
+                if timer_thread:
+                    reset_timer()
+                timer_thread = threading.Thread(target=start_timer)
+                timer_thread.daemon = True
+                timer_thread.start()
+
+            elif "상대방의" in msg_decode:
+                reset_timer()
+
+            if msg_decode.startswith("/t"):
+                word = msg_decode[len("/t"):].strip()
+                word_label.config(text=f"나의 단어: {word}")
+
+
+            else:
+                chat_list.insert(tkinter.END, msg_decode)
+                chat_list.see(tkinter.END)
+        except:
+            break
 def send_message(msg):
     global sock
     message = msg.get()
+    
+    if message == "/start":
+        nickname_label.config(fg="blue")
+    
     sock.send(message.encode())
     msg.set("")
+    
     if message == "/bye":
+        sock.shutdown(socket.SHUT_RDWR)
         sock.close()
-        window.quit()
+        window.destroy()
 
 
 # =================================================================================
@@ -106,6 +144,7 @@ win_connect.protocol("WM_DELETE_WINDOW", lambda: window_input_close(win_connect)
 win_connect.title("접속대상")
 
 tkinter.Label(win_connect, text="접속대상").grid(row=0, column=0)
+
 
 input_addr_string = tkinter.StringVar(value="127.0.0.1:8274")
 
@@ -124,12 +163,14 @@ x = int((screen_width / 2) - (width / 2))
 y = int((screen_height / 2) - (height / 2))
 win_connect.geometry('%dx%d+%d+%d' % (width, height, x, y))
 input_addr.focus()
+
+# 소켓 연결 준비
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
 win_connect.mainloop()
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-print(f"서버 접속시도 [{IP}:{PORT}]")
-connectionResult = sock.connect_ex((IP, PORT))
-print(connectionResult)
+
+
 
 # 닉네임 입력 창
 win_nickname = tkinter.Tk()
