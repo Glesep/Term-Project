@@ -194,11 +194,11 @@ class MyHander(socketserver.BaseRequestHandler):
         finally:
             try:
                 players = list(users.keys())
-                other_player = players[1] if nickname_own == players[0] else players[0]
+                if len(users) == 2:
+                    other_player = players[1] if nickname_own == players[0] else players[0]
                 
                 if 'nickname_own' in locals() and nickname_own in users:
                     
-                        
                     deleteUserData(nickname_own)
                     for sock, _ in users.values():
                         try:
@@ -302,7 +302,7 @@ class MyHander(socketserver.BaseRequestHandler):
         count_vote = sum(1 for agree in start_vote.values() if agree)
         
         for sock, _ in users.values():
-                sock.send(f"{nickname_own}님이 시작 투표를 하였습니다!.\n({count_vote}/2)".encode())
+                sock.send(f"{nickname_own}님이 시작 투표를 하였습니다!. ({count_vote}/2)".encode())
         if count_vote == 2:
             start_game()          
                         

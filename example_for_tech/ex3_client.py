@@ -115,7 +115,7 @@ def recv_message():
 
 
             else:
-                chat_list.insert(tkinter.END, msg_decode)
+                chat_list.insert(tkinter.END, msg_decode + "\n", "message")
                 chat_list.see(tkinter.END)
         except:
             break
@@ -190,42 +190,68 @@ win_nickname.geometry('%dx%d+%d+%d' % (width, height, x, y))
 input_nickname.focus()
 win_nickname.mainloop()
 
+
+
+
 # 메인 채팅창
 window = tkinter.Tk()
 window.protocol("WM_DELETE_WINDOW", lambda: window_input_close(window))
 window.title("채팅 클라이언트")
 
-nickname_label = tkinter.Label(window, text=f"나의 닉네임: {MyNickname}", anchor="w")
-nickname_label.pack(side=tkinter.TOP, fill=tkinter.X, padx=5, pady=5)
+# 상단 정보를 담을 프레임
+info_frame = tkinter.Frame(window)
+info_frame.pack(fill=tkinter.X, padx=5, pady=5)
+# 왼쪽에 닉네임 표시
+nickname_label = tkinter.Label(info_frame, text=f"나의 닉네임: {MyNickname}", anchor="w")
+nickname_label.pack(side=tkinter.LEFT)
 
-word_label = tkinter.Label(window, text=f"나의 단어: {MyWord}")
-word_label.place(relx=1.0, rely=0.0, anchor='ne')
-
+right_info_frame = tkinter.Frame(info_frame)
+right_info_frame.pack(side=tkinter.RIGHT)
+# 단어 레이블
+word_label = tkinter.Label(right_info_frame, text=f"나의 단어: {MyWord}")
+word_label.pack()
 # 타이머 레이블
-timer_label = tkinter.Label(window, text="남은 시간: 60초")
-timer_label.place(relx=1.0, rely=0.05, anchor='ne')
+timer_label = tkinter.Label(right_info_frame, text="남은 시간: ")
+timer_label.pack()
 
-frame = tkinter.Frame(window)
-scroll = tkinter.Scrollbar(frame)
+chat_frame = tkinter.Frame(window)
+chat_frame.pack(fill=tkinter.BOTH, expand=True, padx=5, pady=5)
+
+scroll = tkinter.Scrollbar(chat_frame)
 scroll.pack(side=tkinter.RIGHT, fill=tkinter.Y)
-chat_list = tkinter.Listbox(frame, height=15, width=50, yscrollcommand=scroll.set)
-chat_list.pack(side=tkinter.LEFT, fill=tkinter.BOTH, padx=5, pady=5)
-frame.pack()
+
+chat_list = tkinter.Text(chat_frame, height=15, width=50, wrap=tkinter.WORD, font=('Arial', 10))
+chat_list.pack(side=tkinter.LEFT, fill=tkinter.BOTH, expand=True)
+
+# 스크롤바 연결
+scroll.config(command=chat_list.yview)
+chat_list.config(yscrollcommand=scroll.set)
+
+# Text 위젯에 태그 설정
+chat_list.tag_config("message", spacing1=5, spacing3=5)  # 메시지 위아래 간격 설정
+
+
+input_frame = tkinter.Frame(window)
+input_frame.pack(fill=tkinter.X, padx=5, pady=10)
 
 input_msg = tkinter.StringVar()
-inputbox = tkinter.Entry(window, textvariable=input_msg)
+inputbox = tkinter.Entry(input_frame, textvariable=input_msg)
 inputbox.bind("<Return>", lambda event: send_message(input_msg))
-inputbox.pack(side=tkinter.LEFT, fill=tkinter.BOTH, expand=tkinter.YES, padx=5, pady=5)
+inputbox.pack(side=tkinter.LEFT, fill=tkinter.X, expand=True, ipady=8)
 
-send_button = tkinter.Button(window, text="전송", command=lambda:send_message(input_msg))
-send_button.pack(side=tkinter.RIGHT, fill=tkinter.X, padx=5, pady=5)
+send_button = tkinter.Button(input_frame, text="전송",
+                             command=lambda:send_message(input_msg),
+                             font=('Arial, 10'),
+                             width=5,
+                             height=1)
+send_button.pack(side=tkinter.RIGHT, padx=5, ipady=3)
 
 receive_thread = threading.Thread(target=recv_message)
 receive_thread.daemon=True
 receive_thread.start()
 
-width = 383
-height = 400
+width = 800
+height = 800
 x = int((screen_width / 2) - (width / 2))
 y = int((screen_height / 2) - (height / 2))
 window.geometry('%dx%d+%d+%d' % (width, height, x, y))
